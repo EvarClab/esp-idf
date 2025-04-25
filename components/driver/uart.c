@@ -867,7 +867,7 @@ static void UART_ISR_ATTR uart_rx_intr_handler_default(void *param)
                 //We need to put a loop here, in case all the buffer items are very short.
                 //That would cause a watch_dog reset because empty interrupt happens so often.
                 //Although this is a loop in ISR, this loop will execute at most 128 turns.
-                while (tx_fifo_rem) {
+                while (tx_fifo_rem) { 
                     if (p_uart->tx_len_tot == 0 || p_uart->tx_ptr == NULL || p_uart->tx_len_cur == 0) {
                         size_t size;
                         p_uart->tx_head = (uart_tx_data_t *) xRingbufferReceiveFromISR(p_uart->tx_ring_buf, &size);
@@ -966,18 +966,18 @@ static void UART_ISR_ATTR uart_rx_intr_handler_default(void *param)
                     uart_event.type = UART_DATA;
                     uart_event.size = rx_fifo_len;
                     uart_event.timeout_flag = (uart_intr_status & UART_INTR_RXFIFO_TOUT) ? true : false;
-                    UART_ENTER_CRITICAL_ISR(&uart_selectlock);
-                    if (p_uart->uart_select_notif_callback) {
-                        p_uart->uart_select_notif_callback(uart_num, UART_SELECT_READ_NOTIF, &HPTaskAwoken);
-                    }
-                    UART_EXIT_CRITICAL_ISR(&uart_selectlock);
+                    // UART_ENTER_CRITICAL_ISR(&uart_selectlock);
+                    // if (p_uart->uart_select_notif_callback) {
+                    //     p_uart->uart_select_notif_callback(uart_num, UART_SELECT_READ_NOTIF, &HPTaskAwoken);
+                    // }
+                    // UART_EXIT_CRITICAL_ISR(&uart_selectlock);
                 }
                 p_uart->rx_stash_len = rx_fifo_len;
                 //If we fail to push data to ring buffer, we will have to stash the data, and send next time.
                 //Mainly for applications that uses flow control or small ring buffer.
                 if (pdFALSE == xRingbufferSendFromISR(p_uart->rx_ring_buf, p_uart->rx_data_buf, p_uart->rx_stash_len, &HPTaskAwoken)) {
                     p_uart->rx_buffer_full_flg = true;
-                    UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
+                    UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));                    
                     uart_hal_disable_intr_mask(&(uart_context[uart_num].hal), UART_INTR_RXFIFO_TOUT | UART_INTR_RXFIFO_FULL);
                     UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
                     if (uart_event.type == UART_PATTERN_DET) {
@@ -1013,6 +1013,9 @@ static void UART_ISR_ATTR uart_rx_intr_handler_default(void *param)
                         }
                     }
                     p_uart->rx_buffered_len += p_uart->rx_stash_len;
+                    if (p_uart->uart_select_notif_callback) {
+                        p_uart->uart_select_notif_callback(uart_num, UART_SELECT_READ_NOTIF, &HPTaskAwoken);
+                   }
                     UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
                 }
             } else {
